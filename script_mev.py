@@ -44,8 +44,10 @@ for cnt in contours:
     diameter_um.append(diam)
 
 print("\n--- RESULTADOS ---")
-print(f"Poros detectados: {len(areas_um2)}")
-print(f"Diâmetro médio (µm): {np.mean(diameter_um):.3f}")
+print(f"Poros detectados: {len(props)}")
+print(f"Diâmetro médio (µm): {diametro_medio:.3f}")
+print(f"Porosidade (%): {porosidade:.2f}")
+
 
 # --- VISUALIZAÇÃO ---
 plt.figure(figsize=(15,5))
