@@ -9,7 +9,7 @@ pixel_size = 50 / 1024   # µm por pixel
 image = cv2.imread("/content/Image_Analysis/images/imagem 1.png")
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# --- INVERTER (pq poros são mais escuros) ---
+# --- INVERTER (pq poros são escuros) ---
 inv = cv2.bitwise_not(gray)
 
 # --- LIMIAR ADAPTATIVO ---
@@ -18,13 +18,16 @@ thresh = cv2.adaptiveThreshold(
     255,
     cv2.ADAPTIVE_THRESH_MEAN_C,
     cv2.THRESH_BINARY,
-    35,   # tamanho da vizinhança (ajustável)
-    -10   # constante (ajustável)
+    35,
+    -10
 )
 
-# --- LIMPEZA MORFOLÓGICA (abre os poros) ---
+# --- LIMPEZA MORFOLÓGICA ---
 kernel = np.ones((3,3), np.uint8)
 clean = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+
+# ESTA É A MÁSCARA BINÁRIA QUE REPRESENTA OS POROS
+binary = clean > 0   # True para pixel de poro
 
 # --- CONTORNOS ---
 contours, _ = cv2.findContours(clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -43,17 +46,19 @@ for cnt in contours:
     diam = 2 * np.sqrt(area_um2 / np.pi)
     diameter_um.append(diam)
 
+# DIÂMETRO MÉDIO
+diametro_medio = np.mean(diameter_um) if len(diameter_um) > 0 else 0
+
 # --- CÁLCULO DA POROSIDADE ---
-# binary é sua máscara binária (poros = True)
-area_total = binary.size                  # total de pixels
-area_poros = binary.sum()                 # número de pixels de poro
+area_total = binary.size
+area_poros = binary.sum()
 porosidade = (area_poros / area_total) * 100
 
+# --- RESULTADOS ---
 print("\n--- RESULTADOS ---")
-print(f"Poros detectados: {len(props)}")
+print(f"Poros detectados: {len(diameter_um)}")
 print(f"Diâmetro médio (µm): {diametro_medio:.3f}")
 print(f"Porosidade (%): {porosidade:.2f}")
-
 
 # --- VISUALIZAÇÃO ---
 plt.figure(figsize=(15,5))
@@ -76,4 +81,5 @@ plt.imshow(img_contours)
 plt.axis("off")
 
 plt.show()
+
 
