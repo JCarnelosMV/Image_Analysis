@@ -43,6 +43,12 @@ for cnt in contours:
     diam = 2 * np.sqrt(area_um2 / np.pi)
     diameter_um.append(diam)
 
+# --- CÁLCULO DA POROSIDADE ---
+# binary é sua máscara binária (poros = True)
+area_total = binary.size                  # total de pixels
+area_poros = binary.sum()                 # número de pixels de poro
+porosidade = (area_poros / area_total) * 100
+
 print("\n--- RESULTADOS ---")
 print(f"Poros detectados: {len(props)}")
 print(f"Diâmetro médio (µm): {diametro_medio:.3f}")
