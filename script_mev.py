@@ -3,7 +3,7 @@ import numpy as np
 from skimage import filters, morphology, measure
 import os
 
-def analyze_pores(image_path, pixel_size_um=None):
+def analyze_pores(image_path, pixel_size_um=50/1024):
     print(f"Analisando: {image_path}")
 
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         exit()
 
     for img_file in images:
-        result = analyze_pores(os.path.join(images_folder, img_file), pixel_size_um=None)
+        result = analyze_pores(os.path.join(images_folder, img_file), pixel_size_um=50/1024)
 
         if result:
             print(f"\n📌 Resultados para {img_file}:")
