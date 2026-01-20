@@ -1,63 +1,71 @@
 import cv2
 import numpy as np
-from skimage import filters, morphology, measure
-import os
+import matplotlib.pyplot as plt
 
-def analyze_pores(image_path, pixel_size_um=50/1024):
-    print(f"Analisando: {image_path}")
+# --- TAMANHO DO PIXEL ---
+pixel_size = 50 / 1024   # µm por pixel
 
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+# --- CARREGAR IMAGEM ---
+image = cv2.imread("/content/Image_Analysis/imagens/imagem1.tif")
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    if img is None:
-        print("⚠️ Erro ao abrir a imagem.")
-        return None
+# --- INVERTER (pq poros são mais escuros) ---
+inv = cv2.bitwise_not(gray)
 
-    blurred = cv2.GaussianBlur(img, (5, 5), 0)
+# --- LIMIAR ADAPTATIVO ---
+thresh = cv2.adaptiveThreshold(
+    inv,
+    255,
+    cv2.ADAPTIVE_THRESH_MEAN_C,
+    cv2.THRESH_BINARY,
+    35,   # tamanho da vizinhança (ajustável)
+    -10   # constante (ajustável)
+)
 
-    thresh_val = filters.threshold_otsu(blurred)
-    binary = blurred < thresh_val
+# --- LIMPEZA MORFOLÓGICA (abre os poros) ---
+kernel = np.ones((3,3), np.uint8)
+clean = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
 
-    binary = morphology.remove_small_objects(binary, min_size=50)
-    binary = morphology.remove_small_holes(binary, area_threshold=50)
+# --- CONTORNOS ---
+contours, _ = cv2.findContours(clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    labels = measure.label(binary)
-    props = measure.regionprops(labels)
+areas_um2 = []
+diameter_um = []
 
-    pore_areas = [p.area for p in props]
+for cnt in contours:
+    area_px = cv2.contourArea(cnt)
+    if area_px < 20:   # remove ruído
+        continue
 
-    porosity = np.sum(binary) / binary.size
+    area_um2 = area_px * (pixel_size ** 2)
+    areas_um2.append(area_um2)
+    
+    diam = 2 * np.sqrt(area_um2 / np.pi)
+    diameter_um.append(diam)
 
-    if pixel_size_um:
-        pore_areas_um2 = [a * (pixel_size_um**2) for a in pore_areas]
-        mean_pore_area = np.mean(pore_areas_um2)
-    else:
-        mean_pore_area = np.mean(pore_areas)
+print("\n--- RESULTADOS ---")
+print(f"Poros detectados: {len(areas_um2)}")
+print(f"Diâmetro médio (µm): {np.mean(diameter_um):.3f}")
 
-    return {
-        "porosity_fraction": porosity,
-        "mean_pore_area": mean_pore_area,
-        "n_pores": len(pore_areas)
-    }
+# --- VISUALIZAÇÃO ---
+plt.figure(figsize=(15,5))
 
+plt.subplot(1,3,1)
+plt.title("Original")
+plt.imshow(gray, cmap='gray')
+plt.axis("off")
 
-if __name__ == "__main__":
-    images_folder = "images"
+plt.subplot(1,3,2)
+plt.title("Segmentação")
+plt.imshow(clean, cmap='gray')
+plt.axis("off")
 
-    if not os.path.exists(images_folder):
-        print("⚠️ Pasta 'images/' não encontrada. Crie e coloque as imagens MEV.")
-        exit()
+plt.subplot(1,3,3)
+plt.title("Contornos")
+img_contours = image.copy()
+cv2.drawContours(img_contours, contours, -1, (0,0,255), 1)
+plt.imshow(img_contours)
+plt.axis("off")
 
-    images = [f for f in os.listdir(images_folder) if f.lower().endswith((".png",".jpg",".jpeg",".tif",".tiff"))]
+plt.show()
 
-    if not images:
-        print("⚠️ Nenhuma imagem encontrada na pasta 'images/'.")
-        exit()
-
-    for img_file in images:
-        result = analyze_pores(os.path.join(images_folder, img_file), pixel_size_um=50/1024)
-
-        if result:
-            print(f"\n📌 Resultados para {img_file}:")
-            print(f" - Porosidade: {result['porosity_fraction']:.3f}")
-            print(f" - Tamanho médio dos poros: {result['mean_pore_area']:.2f}")
-            print(f" - Número de poros detectados: {result['n_pores']}")
