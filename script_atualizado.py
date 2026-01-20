@@ -10,7 +10,7 @@ from skimage import io, filters, measure, morphology
 image_path = "imagem 1.png"
 
 # Tamanho do pixel (µm/pixel) — ajuste conforme sua escala do MEV
-pixel_size = 50 µm / 1024 px
+pixel_size = 50/ 1024
 
 # -------------------------------------
 # CARREGAR IMAGEM
