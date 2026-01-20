@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 pixel_size = 50 / 1024   # µm por pixel
 
 # --- CARREGAR IMAGEM ---
-image = cv2.imread("/content/Image_Analysis/images/imagem 1.tif")
+image = cv2.imread("/content/Image_Analysis/images/imagem 1.png")
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 # --- INVERTER (pq poros são mais escuros) ---
