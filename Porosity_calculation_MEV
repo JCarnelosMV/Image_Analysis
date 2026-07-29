@@ -15,7 +15,7 @@ min_area_px = 800
 min_circularity = 0.20
 
 # pasta com as imagens
-folder = "/content/Image_Analysis/images/GelMA/*.tif"   # ajuste: png, tiff etc.
+folder = "/content/Image_Analysis/images/GelMA_ctrl/*.tif"   # ajuste: png, tiff etc.
 
 image_list = glob.glob(folder)
 print(f"Total de imagens encontradas: {len(image_list)}")
