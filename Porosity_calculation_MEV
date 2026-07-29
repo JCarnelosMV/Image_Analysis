@@ -1,0 +1,134 @@
+%cd /content/Image_Analysis   
+!git pull		#Puxa a info que ta no diretório
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+
+# ======================================================
+# 1) CONFIGURAÇÕES
+# ======================================================
+
+pixel_size = 100 / 1024   # µm por pixel (ajuste conforme sua imagem)
+min_area_px = 800
+min_circularity = 0.20
+
+# pasta com as imagens
+folder = "/content/Image_Analysis/images/GelMA/*.tif"   # ajuste: png, tiff etc.
+
+image_list = glob.glob(folder)
+print(f"Total de imagens encontradas: {len(image_list)}")
+
+# listas acumuladas
+all_diameters = []
+all_areas = []
+porosities = []
+
+# ======================================================
+# LOOP EM TODAS AS IMAGENS
+# ======================================================
+
+for img_path in image_list:
+
+    print(f"\nProcessando: {img_path}")
+
+    # 2) CARREGAR IMAGEM
+    image = cv2.imread(img_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    gray_blur = cv2.GaussianBlur(gray, (5,5), 0)
+
+    # 3) SEGMENTAÇÃO OTSU
+    _, thresh = cv2.threshold(gray_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # 4) MORFOLOGIA
+    kernel = np.ones((2,2), np.uint8)
+    clean = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
+    clean = cv2.morphologyEx(clean, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    # 5) CONTORNOS
+    contours, _ = cv2.findContours(clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    valid_contours = []
+    diameters_um = []
+    areas_um2 = []
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < min_area_px:
+            continue
+
+        per = cv2.arcLength(cnt, True)
+        circularity = 4 * np.pi * (area / (per*per + 1e-6))
+
+        if circularity < min_circularity:
+            continue
+
+        area_um2 = area * (pixel_size ** 2)
+        areas_um2.append(area_um2)
+
+        diam = 2 * np.sqrt(area_um2 / np.pi)
+        diameters_um.append(diam)
+
+        valid_contours.append(cnt)
+
+    # acumula nos dados gerais
+    all_diameters.extend(diameters_um)
+    all_areas.extend(areas_um2)
+
+    # porosidade de cada imagem
+    total_pixels = clean.size
+    poro_pixels = clean.sum() / 255
+    porosity_percent = (poro_pixels / total_pixels) * 100
+    porosities.append(porosity_percent)
+
+    # ======================================================
+    # PLOT DA SEGMENTAÇÃO DE CADA IMAGEM
+    # ======================================================
+
+    plt.figure(figsize=(15,5))
+    plt.suptitle(f"Processamento: {img_path}")
+
+    plt.subplot(1,3,1)
+    plt.title("Original")
+    plt.imshow(gray, cmap='gray')
+    plt.axis("off")
+
+    plt.subplot(1,3,2)
+    plt.title("Segmentação refinada")
+    plt.imshow(clean, cmap='gray')
+    plt.axis("off")
+
+    plt.subplot(1,3,3)
+    plt.title("Contornos válidos")
+    img_c = image.copy()
+    cv2.drawContours(img_c, valid_contours, -1, (0,0,255), 1)
+    plt.imshow(img_c)
+    plt.axis("off")
+
+    plt.show()
+
+    print("\n--- RESULTADOS ---")
+    print(f"Poros detectados: {len(valid_contours)}")
+    print(f"Diâmetro médio (µm): {np.mean(diameters_um):.3f}")
+    print(f"Porosidade (%): {porosity_percent:.2f}")
+    print("-----------------------------------------")
+
+# ======================================================
+# HISTOGRAMA FINAL — MÉDIA DO PACOTE
+# ======================================================
+
+plt.figure(figsize=(7,4))
+plt.hist(all_diameters, bins=30)
+plt.xlabel("Diâmetro dos poros (µm)")
+plt.ylabel("Frequência")
+plt.title("Distribuição geral dos diâmetros (todas as imagens)")
+plt.show()
+
+print("\n========== RESULTADOS GERAIS ==========")
+print(f"Total de imagens: {len(image_list)}")
+print(f"Total de poros detectados: {len(all_diameters)}")
+print(f"Diâmetro médio geral (µm): {np.mean(all_diameters):.3f}")
+print(f"Porosidade média (%): {np.mean(porosities):.2f}")
+print("========================================")
